@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  Bookmark,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -9,6 +10,7 @@ import {
   RotateCcw,
   Upload,
   Volume2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -40,6 +42,13 @@ const DEFAULT_SETTINGS: ReaderSettings = {
 };
 
 const STORAGE_KEY = "pulse-reader-settings";
+const BOOKMARK_KEY = "pulse-reader-bookmark";
+
+type Bookmark = {
+  sourceName: string;
+  currentIndex: number;
+  timestamp: number;
+};
 
 export default function App() {
   const [settings, setSettings] = React.useState<ReaderSettings>(() => loadSettings());
@@ -50,14 +59,23 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = React.useState("Preparing reader...");
   const [error, setError] = React.useState<string | null>(null);
   const [dragActive, setDragActive] = React.useState(false);
+  const [hasBookmark, setHasBookmark] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const settingsRef = React.useRef(settings);
   const playbackTokenRef = React.useRef(0);
+  const documentRef = React.useRef<LoadedDocument | null>(null);
 
   React.useEffect(() => {
     settingsRef.current = settings;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  React.useEffect(() => {
+    documentRef.current = document;
+    if (document) {
+      saveBookmark(document.sourceName, currentIndex);
+    }
+  }, [document, currentIndex]);
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -179,7 +197,11 @@ export default function App() {
         chunks: splitIntoChunks(text, settingsRef.current.chunkSize, settingsRef.current.wpm),
         totalWords: text.match(/\S+/g)?.length ?? 0,
       });
-      setCurrentIndex(0);
+      
+      // Check if there's a bookmark for this document
+      const bookmark = loadBookmark(file.name);
+      setCurrentIndex(bookmark ? Math.min(bookmark.currentIndex, result.text.split(/\S+/).length - 1) : 0);
+      setHasBookmark(!!bookmark);
       setIsPlaying(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to read the uploaded file.";
@@ -457,6 +479,27 @@ export default function App() {
                 <RotateCcw className="h-4 w-4" />
                 Reset reader
               </Button>
+
+              {hasBookmark && (
+                <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Bookmark className="h-4 w-4 text-amber-200" />
+                    <span className="text-sm font-medium text-amber-100">Bookmark found</span>
+                  </div>
+                  <p className="text-xs text-amber-100/70">
+                    Resume from where you left off
+                  </p>
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    onClick={() => setHasBookmark(false)}
+                    size="sm"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Clear bookmark
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>
@@ -655,6 +698,57 @@ function loadSettings(): ReaderSettings {
     };
   } catch {
     return DEFAULT_SETTINGS;
+  }
+}
+
+function saveBookmark(sourceName: string, currentIndex: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const bookmark: Bookmark = {
+      sourceName,
+      currentIndex,
+      timestamp: Date.now(),
+    };
+    window.localStorage.setItem(BOOKMARK_KEY, JSON.stringify(bookmark));
+  } catch {
+    // Silently fail if storage is not available
+  }
+}
+
+function loadBookmark(sourceName: string): Bookmark | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(BOOKMARK_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const bookmark = JSON.parse(raw) as Bookmark;
+    // Only return bookmark if it's for the same document
+    if (bookmark.sourceName === sourceName) {
+      return bookmark;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function clearBookmark() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(BOOKMARK_KEY);
+  } catch {
+    // Silently fail if storage is not available
   }
 }
 
