@@ -268,6 +268,7 @@ export default function App() {
             <span>[ ] WPM</span>
             <span>- + chunk size</span>
             <span>Arrow keys step</span>
+            <span>Click progress bar to seek</span>
           </div>
         </div>
       </div>
@@ -539,7 +540,18 @@ export default function App() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                <div
+                  className="mt-3 h-2 cursor-pointer overflow-hidden rounded-full bg-white/[0.08] hover:h-3 transition-all"
+                  onClick={(e) => {
+                    if (!document || document.chunks.length === 0) return;
+                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+                    const newIndex = Math.floor(percentage * document.chunks.length);
+                    setCurrentIndex(Math.min(newIndex, document.chunks.length - 1));
+                    setIsPlaying(false);
+                  }}
+                >
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-teal-300 to-emerald-300 transition-all"
                     style={{ width: `${progress}%` }}
