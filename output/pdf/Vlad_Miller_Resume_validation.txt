@@ -1,0 +1,9 @@
+PASS: 1 A4 page (595.276 x 841.890 pt)
+PASS: 4460 extracted characters in logical section order
+PASS: all 34 required selectable ATS terms present
+PASS: selected projects extract in required order
+PASS: Core Expertise removed
+PASS: Voorschoten retained as citizenM location
+PASS: citizenM scale stated as 120+ employees
+PASS: Studocu scale stated as approximately 156 employees
+PASS: contact details unchanged and 3 hyperlinks present

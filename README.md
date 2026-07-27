@@ -1,52 +1,36 @@
-# Pulse Reader
+# Vlad Miller resume
 
-Local-first speed-reading app built with React, TypeScript, Vite, Tailwind, and shadcn-style controls.
+Production-ready A4 resume with selectable text and an editable, data-driven source.
 
-## Features
+## Edit the content
 
-- Upload PDF, EPUB, or TXT files
-- Client-side parsing only
-- Adjustable WPM, chunk size, and font size
-- Play/pause/reset controls
-- Keyboard shortcuts
-- Progress indicator
-- Punctuation-aware pauses
-- Pivot-letter highlighting for single-word mode
-- Dark premium UI
+Open `data/resume.json`. Contact details, title, dates, skills, achievement summaries, job descriptions, and education are all maintained there. The layout and typography live in `scripts/build_resume.py`.
 
-## Tech Stack
-
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- shadcn/ui-style control components built on Radix primitives
-- `pdfjs-dist` for PDF parsing
-- `epubjs` for EPUB parsing
-
-## Run Locally
-
-```bash
-npm install
-npm run dev
-```
+The current source uses confirmed contact details from the supplied resume. Replace the values in `contact` if they change. Keep bullet text concise to preserve the one-page layout.
 
 ## Build
 
-```bash
-npm run build
+This project uses Python 3, ReportLab, and pypdf:
+
+```sh
+python3 -m pip install reportlab pypdf
+python3 scripts/build_resume.py
+python3 scripts/validate_resume.py
 ```
 
-## Keyboard Shortcuts
+The finished file is written to `output/pdf/Vlad_Miller_Resume.pdf`.
 
-- `Space`: Play / pause
-- `R`: Reset to the start
-- `ArrowRight`: Next chunk
-- `ArrowLeft`: Previous chunk
-- `[` / `]`: Decrease / increase WPM
-- `-` / `=`: Decrease / increase chunk size
+## Fonts
 
-## Notes
+The build uses the system Arial font on macOS and embeds a subset in the PDF. If Arial is unavailable, it falls back to system Verdana. No font file is included or redistributed with this project.
 
-- Parsing happens fully in the browser.
-- PDF.js worker setup uses a module worker with a fallback to `workerSrc`.
-- EPUB extraction is defensive and skips unreadable spine items instead of failing the whole book.
+## Preview and print QA
+
+Render the PDF with Poppler:
+
+```sh
+mkdir -p tmp/pdfs
+pdftoppm -png -r 160 -f 1 -singlefile output/pdf/Vlad_Miller_Resume.pdf tmp/pdfs/Vlad_Miller_Resume
+```
+
+The document is A4 with restrained colour and remains legible in greyscale. Run the validation script after every content edit; it checks page count, page dimensions, text extraction order, and key ATS terms.

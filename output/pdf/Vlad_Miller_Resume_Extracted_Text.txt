@@ -1,0 +1,91 @@
+VLAD MILLER
+Infrastructure & Automation Engineer
+Terraform · Identity Engineering · Automation · Enterprise macOS
+Haarlem · Amsterdam Area · Netherlands | +31 6 25146840 | vladmoraru91@gmail.com | linkedin.com/in/vlad-miller
+EU citizen · Available immediately
+PROFILE
+Infrastructure & Automation Engineer designing identity, endpoint, networking, and workplace platforms across
+Apple-first and mixed-device environments. Specialised in Terraform, IAM, CI/CD, enterprise macOS, and workflow
+automation. Combines hands-on engineering with ownership of vendors, procurement, office infrastructure, and
+employee lifecycle operations.
+SELECTED PROJECTS
+Enterprise Identity Platform
+Terraform · HiBob · Okta · Google Workspace · Intune · GCPW ·
+GitHub · Spacelift
+Designed Terraform-based identity automation connecting HR
+events to downstream account provisioning, access, group
+membership, permissions, and application assignment.
+AI Service Desk
+Slack · TopDesk · AI-assisted workflow automation
+Built an AI-powered Slack service desk automating structured
+issue intake, ticket creation, troubleshooting guidance,
+follow-up, resolution, routing, and engineer escalation.
+Modern Workplace Platform
+Apple Business Manager · Kandji · Google Workspace · macOS ·
+Zero-touch deployment
+Operated and standardised an Apple-first workplace platform
+covering endpoint deployment, configuration, security
+baselines, application delivery, identity workflows, and device
+lifecycle management.
+Network Modernisation
+Ubiquiti · Wi-Fi 7 · VLANs · IoT segmentation · Structured cabling
+Modernised office networking from Ethernet-heavy
+infrastructure to enterprise Wi-Fi, later upgrading from Wi-Fi 6
+to Wi-Fi 7 and introducing VLAN architecture with dedicated IoT
+segmentation.
+Additional tools: Python · Bash · REST APIs · RBAC
+PROFESSIONAL EXPERIENCE
+Senior IT Engineer · Infrastructure & Automation · citizenM
+Dec 2025 - May 2026
+Voorschoten, Netherlands
+Supported a 120+ employee office environment.
+●
+Designed Terraform-based enterprise identity automation connecting HiBob, Okta, Google Workspace, Google Groups,
+Microsoft Intune, GCPW, and downstream SaaS platforms.
+●
+Built and maintained GitHub + Spacelift CI/CD pipelines standardising review and deployment of Terraform
+infrastructure.
+●
+Automated onboarding, offboarding, group membership, role assignment, permissions, and location-based application
+access.
+●
+Standardised authentication across Windows and macOS by delivering GCPW and Okta SSO through
+Terraform-managed configuration.
+●
+Designed and developed an AI-powered Slack service desk integrated with TopDesk for ticket creation, troubleshooting,
+follow-up, automatic closure, routing, and engineer escalation.
+IT Support Specialist · Workplace Infrastructure · Studocu / Studeersnel.nl
+Dec 2023 - Nov 2025
+Amsterdam, Netherlands
+●
+Sole on-site IT engineer for an Apple-first workplace of approximately 156 employees, spanning endpoints, identity,
+office technology, procurement, vendors, and asset lifecycle.
+●
+Administered Apple Business Manager and Kandji Blueprints for zero-touch onboarding, application delivery,
+configuration, and security baselines; managed Google Workspace and Slack workflows.
+●
+Designed and delivered workplace network modernisation using Ubiquiti, migrating from Ethernet-heavy infrastructure to
+enterprise Wi-Fi and later upgrading from Wi-Fi 6 to Wi-Fi 7.
+●
+Introduced VLAN architecture and dedicated IoT segmentation; delivered conference rooms, access control, structured
+cabling, desk deployments, and office expansion infrastructure.
+●
+Automated internal business workflows using AppSheet, Google Apps Script, and Slack.
+Technical Support Specialist · Trengo
+Apr 2023 - Dec 2023
+Utrecht, Netherlands
+Investigated and resolved 30-40 daily SaaS incidents across macOS and Windows, analysed integrations and escalations,
+and automated licence reporting using Google Apps Script.
+Technical Expert / Customer Support Specialist · VanMoof
+Sep 2020 - Aug 2022
+Amsterdam, Netherlands
+Owned L2 escalation for complex diagnostics, remote support, and product cases; maintained Freshdesk/Zendesk
+workflows and knowledge content.
+EDUCATION
+LL.B., Law · Alexandru Ioan Cuza University, Iași
+International studies: Süleyman Demirel University · University of Groningen
+CERTIFICATIONS
+VOP NEN 3140 / NEN 1010
+PROFESSIONAL
+DEVELOPMENT
+Wireless Networking Essential Training · Custom GPTs, Copilots & AI Agents · Python for Non-Programmers
