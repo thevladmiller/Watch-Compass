@@ -1,0 +1,317 @@
+{
+  "name": "Codex Workflows",
+  "visibility": "private",
+  "snapshotDate": "2026-10-10",
+  "lists": [
+    "Backlog",
+    "Ready",
+    "In progress",
+    "Waiting",
+    "Review",
+    "Done"
+  ],
+  "labels": [
+    "Infrastructure",
+    "Watch Compass",
+    "Kilterr",
+    "Career OS",
+    "Millco",
+    "Job search",
+    "Personal admin",
+    "Board setup",
+    "Resume"
+  ],
+  "notes": [
+    "Prepared from nine project entries and recent visible Codex chats. Not a complete archive audit.",
+    "List placement and next steps are suggested from the latest available evidence. An idle chat does not mean its project is complete.",
+    "No deadlines, assignments, paid features, automations, or live synchronization configured.",
+    "Personal-admin cards intentionally omit contact details, financial amounts, and legal or medical content.",
+    "Created in Trello. Project names are included in card titles; native color labels are not configured."
+  ],
+  "cards": [
+    {
+      "list": "Backlog",
+      "label": "Infrastructure",
+      "name": "Choose Forager deployment target and Terraform integration",
+      "source": "019e458b-88c1-7a03-82af-e7c3e809f5ab",
+      "evidence": "The latest discussion presents deployment options; implementation is not confirmed.",
+      "next": "Choose where Forager will run, then define non-secret infrastructure outputs and deployment configuration.",
+      "checklist": [
+        "Confirm deployment target",
+        "Define non-secret Terraform outputs",
+        "Wire deployment secrets through the deployment environment",
+        "Verify state storage versioning and encryption"
+      ],
+      "proposed": true,
+      "id": "CW-01",
+      "sourceUrl": "codex://threads/019e458b-88c1-7a03-82af-e7c3e809f5ab",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca75516f4d47f164b96550",
+      "trelloUrl": "https://trello.com/c/fNXYAKk6/1-infrastructure-choose-forager-deployment-target-and-terraform-integration"
+    },
+    {
+      "list": "Backlog",
+      "label": "Watch Compass",
+      "name": "Resume smartwatch platform integration",
+      "source": "019f5380-5b6e-7a60-b18c-37f63e6808a8",
+      "evidence": "Native code exists under native/. The local README describes shared navigation, UI, and platform adapters; current device readiness is unconfirmed.",
+      "next": "Review platform adapter and app-shell completeness, then choose a real-device acceptance test.",
+      "checklist": [
+        "Review watchOS and Wear OS implementation",
+        "Choose first target device",
+        "Test marking a start point and returning",
+        "Measure direction and distance drift"
+      ],
+      "proposed": true,
+      "id": "CW-02",
+      "sourceUrl": "codex://threads/019f5380-5b6e-7a60-b18c-37f63e6808a8",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca755924cb9625e1b9c30d",
+      "trelloUrl": "https://trello.com/c/GEJgsGqy/2-watch-compass-resume-smartwatch-platform-integration"
+    },
+    {
+      "list": "Ready",
+      "label": "Kilterr",
+      "name": "Verify fixed-layout web flow on a physical Kilter board",
+      "source": "01a11096-996b-7c21-836f-b5326510af9b",
+      "evidence": "Both local web builds pass automated checks. The October 10 refresh did not establish new physical verification.",
+      "next": "Use a supported Original 12×12 with kickboard, Bolt Ons + Screw Ons board and record the physical result.",
+      "checklist": [
+        "Verify physical layout matches the shipped mapping",
+        "Connect and confirm no board/angle selectors appear",
+        "Select grade and spin",
+        "Disconnect and reconnect without LED replay",
+        "Use SHOW CLIMB and verify the expected holds"
+      ],
+      "proposed": true,
+      "id": "CW-03",
+      "sourceUrl": "codex://threads/01a11096-996b-7c21-836f-b5326510af9b",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca755b3d457a16bbafc858",
+      "trelloUrl": "https://trello.com/c/c7Lcrcg3/3-kilterr-verify-fixed-layout-web-flow-on-a-physical-kilter-board"
+    },
+    {
+      "list": "Ready",
+      "label": "Career OS",
+      "name": "Complete installed macOS discovery acceptance",
+      "source": "019fa3b5-e5c4-7df1-9a5e-829b6f04e44d",
+      "evidence": "Discovery repair and release build passed automated verification; an exact Launch Services source-scan click remains a human acceptance check.",
+      "next": "Launch the final release app and exercise both discovery controls.",
+      "checklist": [
+        "Launch release app",
+        "Click source Scan now",
+        "Click Run discovery",
+        "Confirm progress and review queue persist after restart",
+        "Confirm no browser windows open"
+      ],
+      "proposed": true,
+      "id": "CW-04",
+      "sourceUrl": "codex://threads/019fa3b5-e5c4-7df1-9a5e-829b6f04e44d",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca755c30479bbd5e6236b7",
+      "trelloUrl": "https://trello.com/c/6Mx367iU/4-career-os-complete-installed-macos-discovery-acceptance"
+    },
+    {
+      "list": "Ready",
+      "label": "Millco",
+      "name": "Review and publish the prepared LinkedIn launch post",
+      "source": "01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "evidence": "The recent chat contains a prepared onboarding/offboarding automation post. Nothing has been posted.",
+      "next": "Review the draft and choose when to publish it. Publishing is a separate action.",
+      "checklist": [
+        "Review the existing draft",
+        "Check the service-page link",
+        "Choose publication time",
+        "Publish after review"
+      ],
+      "proposed": true,
+      "id": "CW-05",
+      "sourceUrl": "codex://threads/01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca755ec5a5466b0b2a5ca7",
+      "trelloUrl": "https://trello.com/c/PCObIi1I/5-millco-review-and-publish-the-prepared-linkedin-launch-post"
+    },
+    {
+      "list": "In progress",
+      "label": "Job search",
+      "name": "Continue job application pipeline",
+      "source": "01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "evidence": "The application summary was updated on October 10. The workflow is ongoing; the chat itself is idle.",
+      "next": "Review open applications and select the next suitable roles.",
+      "checklist": [
+        "Review the current application summary",
+        "Select next roles against established criteria",
+        "Prepare role-specific materials",
+        "Record submissions and replies"
+      ],
+      "proposed": true,
+      "id": "CW-06",
+      "sourceUrl": "codex://threads/01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca755f2ccb2b33fc8a9c0d",
+      "trelloUrl": "https://trello.com/c/QywEFPRh/6-job-search-continue-job-application-pipeline"
+    },
+    {
+      "list": "In progress",
+      "label": "Millco",
+      "name": "Monitor website indexing coverage",
+      "source": "01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "evidence": "Bing sitemap and 22 URLs were submitted. Google indexing was requested for the Dutch homepage and three service pages; service pages and coverage reporting remain pending.",
+      "next": "Check indexing coverage and record which service pages are indexed.",
+      "checklist": [
+        "Check Google coverage once reporting is available",
+        "Verify Dutch service-page indexing",
+        "Check Bing sitemap status"
+      ],
+      "proposed": true,
+      "id": "CW-07",
+      "sourceUrl": "codex://threads/01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca7561824d5838947ed2f4",
+      "trelloUrl": "https://trello.com/c/fjle6ZTB/7-millco-monitor-website-indexing-coverage"
+    },
+    {
+      "list": "Waiting",
+      "label": "Kilterr",
+      "name": "Native iPhone physical checkpoint before Solo integration",
+      "source": "01a11096-996b-7c21-836f-b5326510af9b",
+      "evidence": "Latest project review says the native iPhone checkpoint is unchanged and physical iOS verification gates native Solo integration.",
+      "next": "Complete and record the native iPhone hardware acceptance checklist.",
+      "checklist": [
+        "Run documented iPhone physical acceptance",
+        "Record connection and LED results",
+        "Resolve any observed failures",
+        "Proceed with native Solo integration only after acceptance"
+      ],
+      "proposed": true,
+      "id": "CW-08",
+      "sourceUrl": "codex://threads/01a11096-996b-7c21-836f-b5326510af9b",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca756246a69ad61e045233",
+      "trelloUrl": "https://trello.com/c/hxOhT2XT/8-kilterr-native-iphone-physical-checkpoint-before-solo-integration"
+    },
+    {
+      "list": "Waiting",
+      "label": "Job search",
+      "name": "Confirm scheduling for bGrid next round",
+      "source": "01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "evidence": "The user reported a next round; the latest check found no new scheduling email.",
+      "next": "Check for scheduling details and record the confirmed date.",
+      "checklist": [
+        "Check for scheduling reply",
+        "Record confirmed interview details",
+        "Prepare for next round"
+      ],
+      "proposed": true,
+      "id": "CW-09",
+      "sourceUrl": "codex://threads/01a0fcb9-ca22-7c71-b7d1-91b697bd9361",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca7563135ddebb965df928",
+      "trelloUrl": "https://trello.com/c/L3HM5hFN/9-job-search-confirm-scheduling-for-bgrid-next-round"
+    },
+    {
+      "list": "Waiting",
+      "label": "Watch Compass",
+      "name": "Resolve repository push access",
+      "source": "019f5380-5b6e-7a60-b18c-37f63e6808a8",
+      "evidence": "Latest chat discussed write-authentication issues for the Watch-Compass repository; successful push is not confirmed.",
+      "next": "Verify repository write access and whether the push has since succeeded.",
+      "checklist": [
+        "Confirm correct repository",
+        "Verify write access",
+        "Confirm local changes are pushed"
+      ],
+      "proposed": true,
+      "id": "CW-10",
+      "sourceUrl": "codex://threads/019f5380-5b6e-7a60-b18c-37f63e6808a8",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca7565565eac8d4863b49b",
+      "trelloUrl": "https://trello.com/c/qorVe8Lh/10-watch-compass-resolve-repository-push-access"
+    },
+    {
+      "list": "Waiting",
+      "label": "Personal admin",
+      "name": "Complete outstanding broker-removal steps",
+      "source": "01a106bb-7995-7520-9422-bc9a15d2304d",
+      "evidence": "No removals were confirmed. Verification and required user inputs remain outstanding.",
+      "next": "Review the original chat and complete the outstanding verification or authorization steps.",
+      "checklist": [
+        "Complete pending verification",
+        "Provide required form input in the original workflow",
+        "Resolve outstanding authorization",
+        "Record confirmed removal results"
+      ],
+      "proposed": true,
+      "id": "CW-11",
+      "sourceUrl": "codex://threads/01a106bb-7995-7520-9422-bc9a15d2304d",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca7566ccfd2039f0fcb167",
+      "trelloUrl": "https://trello.com/c/HRanwQ7e/11-personal-admin-complete-outstanding-broker-removal-steps"
+    },
+    {
+      "list": "Review",
+      "label": "Board setup",
+      "name": "Weekly workflow review",
+      "source": null,
+      "evidence": "Suggested operating routine for this board, not an existing automation.",
+      "next": "Choose up to three priorities, unblock waiting work, and move verified results to Done.",
+      "checklist": [
+        "Choose three priorities",
+        "Check each Waiting card for a concrete unblock action",
+        "Move completed work to Done with evidence",
+        "Archive stale work after review"
+      ],
+      "proposed": true,
+      "id": "CW-12",
+      "sourceUrl": null,
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca75674abd6969f4c7d15c",
+      "trelloUrl": "https://trello.com/c/OROgHnOm/12-board-setup-weekly-workflow-review"
+    },
+    {
+      "list": "Done",
+      "label": "Kilterr",
+      "name": "Refresh and rebuild fixed-layout web versions",
+      "source": "01a11096-996b-7c21-836f-b5326510af9b",
+      "evidence": "October 10 chat reports both local builds passed, stale selection instructions removed, 314 application tests and 14 mapping tests passed, committed as 11288f6.",
+      "next": "Retain this as completed evidence; physical checks are separate.",
+      "checklist": [],
+      "proposed": false,
+      "id": "CW-13",
+      "sourceUrl": "codex://threads/01a11096-996b-7c21-836f-b5326510af9b",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca75693d8aec5d951b8460",
+      "trelloUrl": "https://trello.com/c/HzqWOXXk/13-kilterr-refresh-and-rebuild-fixed-layout-web-versions"
+    },
+    {
+      "list": "Done",
+      "label": "Resume",
+      "name": "Finish project-led one-page ATS resume",
+      "source": "019f8e7d-aa67-7a42-ae2f-6e88118b9fdb",
+      "evidence": "The resume chat reports a completed one-page A4 PDF, editable source, 34 ATS terms, working links, and colour/greyscale validation.",
+      "next": "Use the current resume as the baseline for applications.",
+      "checklist": [],
+      "proposed": false,
+      "id": "CW-14",
+      "sourceUrl": "codex://threads/019f8e7d-aa67-7a42-ae2f-6e88118b9fdb",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca756ba56690511055678c",
+      "trelloUrl": "https://trello.com/c/cUTfhVrG/14-resume-finish-project-led-one-page-ats-resume"
+    },
+    {
+      "list": "Done",
+      "label": "Career OS",
+      "name": "Repair and package direct ATS discovery",
+      "source": "019fa3b5-e5c4-7df1-9a5e-829b6f04e44d",
+      "evidence": "The chat reports the discovery repair committed, release app built, 165 TypeScript and 7 Rust tests passed. Human installed-app acceptance remains separate.",
+      "next": "Retain as implementation evidence; complete the separate acceptance card.",
+      "checklist": [],
+      "proposed": false,
+      "id": "CW-15",
+      "sourceUrl": "codex://threads/019fa3b5-e5c4-7df1-9a5e-829b6f04e44d",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca756ee9880d0962a092b6",
+      "trelloUrl": "https://trello.com/c/1nxIZ452/15-career-os-repair-and-package-direct-ats-discovery"
+    },
+    {
+      "list": "Done",
+      "label": "Personal admin",
+      "name": "Complete concert ticket resale",
+      "source": "01a11fbd-f7a8-7590-830d-aa270853e965",
+      "evidence": "Latest chat confirms both tickets sold, workflow wrapped up, and scheduled checks stopped.",
+      "next": "No resale action remains.",
+      "checklist": [],
+      "proposed": false,
+      "id": "CW-16",
+      "sourceUrl": "codex://threads/01a11fbd-f7a8-7590-830d-aa270853e965",
+      "trelloId": "ari:cloud:trello::card/workspace/60c98bac8132696fab0d325f/6aca7570e0f5c1679ca59544",
+      "trelloUrl": "https://trello.com/c/n75n960L/16-personal-admin-complete-concert-ticket-resale"
+    }
+  ],
+  "url": "https://trello.com/b/AuMCn3wl/codex-workflows"
+}

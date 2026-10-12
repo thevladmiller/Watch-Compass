@@ -1,757 +1,232 @@
 import * as React from "react";
-import {
-  Bookmark,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Loader2,
-  Pause,
-  Play,
-  RotateCcw,
-  Upload,
-  Volume2,
-  X,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
-import { extractEpubText } from "@/lib/epub";
-import { extractPdfText } from "@/lib/pdf";
-import { extractPivotLetters, splitIntoChunks, type ReaderChunk } from "@/lib/text";
-import { cn } from "@/lib/utils";
 
-type ReaderSettings = {
-  wpm: number;
-  chunkSize: number;
-  fontSize: number;
-};
+type Point = { latitude: number; longitude: number };
+type SensorPermission = "idle" | "granted" | "limited";
 
-type LoadedDocument = {
-  title: string;
-  sourceName: string;
-  text: string;
-  chunks: ReaderChunk[];
-  totalWords: number;
-};
+const TUTORIAL_KEY = "watch-compass-tutorial-seen";
+const FULL_RESET_RADIANS = Math.PI * 6;
 
-const DEFAULT_SETTINGS: ReaderSettings = {
-  wpm: 360,
-  chunkSize: 1,
-  fontSize: 72,
-};
+function normalizeDegrees(value: number) {
+  return ((value % 360) + 360) % 360;
+}
 
-const STORAGE_KEY = "pulse-reader-settings";
-const BOOKMARK_KEY = "pulse-reader-bookmark";
+function shortestAngleDelta(from: number, to: number) {
+  let delta = to - from;
+  while (delta > Math.PI) delta -= Math.PI * 2;
+  while (delta < -Math.PI) delta += Math.PI * 2;
+  return delta;
+}
 
-type Bookmark = {
-  sourceName: string;
-  currentIndex: number;
-  timestamp: number;
-};
+function distanceAndBearing(from: Point, to: Point) {
+  const earthRadius = 6_371_000;
+  const lat1 = (from.latitude * Math.PI) / 180;
+  const lat2 = (to.latitude * Math.PI) / 180;
+  const latitudeDelta = ((to.latitude - from.latitude) * Math.PI) / 180;
+  const longitudeDelta = ((to.longitude - from.longitude) * Math.PI) / 180;
+  const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(longitudeDelta / 2) ** 2;
+  const distance = earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const y = Math.sin(longitudeDelta) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(longitudeDelta);
+  const bearing = normalizeDegrees((Math.atan2(y, x) * 180) / Math.PI);
+  return { distance, bearing };
+}
+
+async function requestMotionPermission() {
+  const orientationEvent = DeviceOrientationEvent as typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
+  const motionEvent = DeviceMotionEvent as typeof DeviceMotionEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
+  const responses = await Promise.all([
+    orientationEvent.requestPermission?.() ?? Promise.resolve("granted"),
+    motionEvent.requestPermission?.() ?? Promise.resolve("granted"),
+  ]);
+  return responses.every((response) => response === "granted");
+}
 
 export default function App() {
-  const [settings, setSettings] = React.useState<ReaderSettings>(() => loadSettings());
-  const [document, setDocument] = React.useState<LoadedDocument | null>(null);
-  const [currentIndex, setCurrentIndex] = React.useState(0);
-  const [isPlaying, setIsPlaying] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [loadingMessage, setLoadingMessage] = React.useState("Preparing reader...");
-  const [error, setError] = React.useState<string | null>(null);
-  const [dragActive, setDragActive] = React.useState(false);
-  const [hasBookmark, setHasBookmark] = React.useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const settingsRef = React.useRef(settings);
-  const playbackTokenRef = React.useRef(0);
-  const documentRef = React.useRef<LoadedDocument | null>(null);
+  const [tutorialOpen, setTutorialOpen] = React.useState(() => window.localStorage.getItem(TUTORIAL_KEY) !== "true");
+  const [anchor, setAnchor] = React.useState<Point | null>(null);
+  const [position, setPosition] = React.useState<Point | null>(null);
+  const [distance, setDistance] = React.useState(0);
+  const [bearing, setBearing] = React.useState(0);
+  const [heading, setHeading] = React.useState(0);
+  const [motion, setMotion] = React.useState({ x: 0, y: 0 });
+  const [permission, setPermission] = React.useState<SensorPermission>("idle");
+  const [message, setMessage] = React.useState("Tap Set to remember this place");
+  const [resetProgress, setResetProgress] = React.useState(0);
+  const watchIdRef = React.useRef<number | null>(null);
+  const gestureRef = React.useRef({ active: false, lastAngle: 0, travel: 0 });
+
+  const reset = React.useCallback(() => {
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+    setAnchor(null);
+    setPosition(null);
+    setDistance(0);
+    setBearing(0);
+    setResetProgress(0);
+    setMessage("Tap Set to remember this place");
+  }, []);
 
   React.useEffect(() => {
-    settingsRef.current = settings;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  }, [settings]);
-
-  React.useEffect(() => {
-    documentRef.current = document;
-    if (document) {
-      saveBookmark(document.sourceName, currentIndex);
-    }
-  }, [document, currentIndex]);
-
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) &&
-        event.code !== "Space"
-      ) {
-        return;
-      }
-
-      switch (event.code) {
-        case "Space":
-          event.preventDefault();
-          togglePlayback();
-          break;
-        case "ArrowRight":
-          event.preventDefault();
-          stepForward();
-          break;
-        case "ArrowLeft":
-          event.preventDefault();
-          stepBackward();
-          break;
-        case "KeyR":
-          event.preventDefault();
-          resetPlayback();
-          break;
-        case "BracketRight":
-          event.preventDefault();
-          setSettings((prev) => ({ ...prev, wpm: Math.min(1200, prev.wpm + 25) }));
-          break;
-        case "BracketLeft":
-          event.preventDefault();
-          setSettings((prev) => ({ ...prev, wpm: Math.max(80, prev.wpm - 25) }));
-          break;
-        case "Minus":
-          event.preventDefault();
-          setSettings((prev) => ({ ...prev, chunkSize: Math.max(1, prev.chunkSize - 1) }));
-          break;
-        case "Equal":
-          event.preventDefault();
-          setSettings((prev) => ({ ...prev, chunkSize: Math.min(8, prev.chunkSize + 1) }));
-          break;
-        default:
-          break;
-      }
+    const onOrientation = (event: DeviceOrientationEvent) => {
+      const compassHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
+      if (typeof compassHeading === "number") setHeading(compassHeading);
+      else if (event.alpha !== null) setHeading(normalizeDegrees(360 - event.alpha));
     };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [document, isPlaying, currentIndex]);
+    const onMotion = (event: DeviceMotionEvent) => {
+      const acceleration = event.accelerationIncludingGravity;
+      if (!acceleration) return;
+      setMotion({
+        x: Math.max(-1, Math.min(1, (acceleration.x ?? 0) / 9.81)),
+        y: Math.max(-1, Math.min(1, (acceleration.y ?? 0) / 9.81)),
+      });
+    };
+    window.addEventListener("deviceorientation", onOrientation, true);
+    window.addEventListener("devicemotion", onMotion, true);
+    return () => {
+      window.removeEventListener("deviceorientation", onOrientation, true);
+      window.removeEventListener("devicemotion", onMotion, true);
+    };
+  }, []);
 
   React.useEffect(() => {
-    if (!document || !isPlaying || document.chunks.length === 0) {
+    if (!anchor || !position) return;
+    const next = distanceAndBearing(position, anchor);
+    setDistance(next.distance);
+    setBearing(next.bearing);
+  }, [anchor, position]);
+
+  React.useEffect(() => () => {
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+  }, []);
+
+  async function setOrigin() {
+    if (!navigator.geolocation) {
+      setMessage("Location is not available in this browser");
+      setPermission("limited");
       return;
     }
-
-    const token = ++playbackTokenRef.current;
-    const chunk = document.chunks[currentIndex];
-    if (!chunk) {
-      setIsPlaying(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      if (token !== playbackTokenRef.current) {
-        return;
-      }
-
-      setCurrentIndex((index) => {
-        if (!document) {
-          return index;
-        }
-
-        if (index >= document.chunks.length - 1) {
-          setIsPlaying(false);
-          return index;
-        }
-
-        return index + 1;
-      });
-    }, chunk.pauseMs);
-
-    return () => window.clearTimeout(timeout);
-  }, [document, isPlaying, currentIndex]);
-
-  const progress =
-    document && document.chunks.length > 0
-      ? (Math.min(currentIndex + 1, document.chunks.length) / document.chunks.length) * 100
-      : 0;
-  const activeChunk =
-    document && document.chunks.length > 0
-      ? document.chunks[Math.min(currentIndex, document.chunks.length - 1)]
-      : null;
-  const hasDocument = document !== null;
-  const canPlayback = Boolean(document && document.chunks.length > 0);
-
-  async function handleFile(file: File) {
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage(`Loading ${file.name}...`);
-
+    setMessage("Finding your position…");
     try {
-      const result = await loadFile(file, (message) => setLoadingMessage(message));
-      const text = result.text.trim();
-      if (!text) {
-        throw new Error("No readable text was found in the selected file.");
-      }
-      setDocument({
-        title: result.title,
-        sourceName: file.name,
-        text,
-        chunks: splitIntoChunks(text, settingsRef.current.chunkSize, settingsRef.current.wpm),
-        totalWords: text.match(/\S+/g)?.length ?? 0,
-      });
-      
-      // Check if there's a bookmark for this document
-      const bookmark = loadBookmark(file.name);
-      setCurrentIndex(bookmark ? Math.min(bookmark.currentIndex, result.text.split(/\S+/).length - 1) : 0);
-      setHasBookmark(!!bookmark);
-      setIsPlaying(false);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to read the uploaded file.";
-      setError(message);
-    } finally {
-      setIsLoading(false);
+      setPermission((await requestMotionPermission()) ? "granted" : "limited");
+    } catch {
+      setPermission("limited");
+    }
+    navigator.geolocation.getCurrentPosition(
+      (result) => {
+        const origin = { latitude: result.coords.latitude, longitude: result.coords.longitude };
+        setAnchor(origin);
+        setPosition(origin);
+        setDistance(0);
+        setMessage("Origin set · move away");
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (update) => setPosition({ latitude: update.coords.latitude, longitude: update.coords.longitude }),
+          () => setMessage("Waiting for a clear location signal…"),
+          { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 },
+        );
+      },
+      () => {
+        setPermission("limited");
+        setMessage("Allow precise location, then tap Set again");
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
+    );
+  }
+
+  function pointerAngle(event: React.PointerEvent) {
+    return Math.atan2(event.clientY - window.innerHeight / 2, event.clientX - window.innerWidth / 2);
+  }
+
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    gestureRef.current = { active: true, lastAngle: pointerAngle(event), travel: 0 };
+  }
+
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const gesture = gestureRef.current;
+    if (!gesture.active || !anchor) return;
+    const nextAngle = pointerAngle(event);
+    const delta = shortestAngleDelta(gesture.lastAngle, nextAngle);
+    gesture.lastAngle = nextAngle;
+    gesture.travel = Math.min(0, gesture.travel + delta);
+    if (delta > 0.25) gesture.travel = Math.min(0, gesture.travel + delta * 1.8);
+    const progress = Math.min(1, Math.abs(gesture.travel) / FULL_RESET_RADIANS);
+    setResetProgress(progress);
+    if (gesture.travel <= -FULL_RESET_RADIANS) {
+      gesture.active = false;
+      reset();
+      if (navigator.vibrate) navigator.vibrate([40, 40, 80]);
     }
   }
 
-  function rebuildChunks(nextSettings = settings) {
-    setDocument((current) => {
-      if (!current) {
-        return current;
-      }
-
-      const chunks = splitIntoChunks(current.text, nextSettings.chunkSize, nextSettings.wpm);
-      setCurrentIndex((index) => Math.min(index, Math.max(0, chunks.length - 1)));
-      return {
-        ...current,
-        chunks,
-        totalWords: current.text.match(/\S+/g)?.length ?? 0,
-      };
-    });
+  function endGesture(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    gestureRef.current.active = false;
+    gestureRef.current.travel = 0;
+    setResetProgress(0);
   }
 
-  function updateSettings(updater: (prev: ReaderSettings) => ReaderSettings) {
-    setSettings((prev) => {
-      const next = updater(prev);
-      queueMicrotask(() => rebuildChunks(next));
-      return next;
-    });
-  }
+  const relativeBearing = normalizeDegrees(bearing - heading);
+  const radians = ((relativeBearing - 90) * Math.PI) / 180;
+  const travel = anchor ? Math.min(1, distance / 22) : 0;
+  const edgeX = Math.cos(radians) * (window.innerWidth / 2 - 30);
+  const edgeY = Math.sin(radians) * (window.innerHeight / 2 - 30);
+  const edgeCompression = Math.max(0, (travel - 0.62) / 0.38);
+  const blobStyle = {
+    "--blob-x": `${edgeX * travel}px`,
+    "--blob-y": `${edgeY * travel}px`,
+    "--blob-scale": 1 - edgeCompression * 0.42,
+    "--blob-tilt-x": motion.x,
+    "--blob-tilt-y": motion.y,
+    "--blob-angle": `${relativeBearing}deg`,
+  } as React.CSSProperties;
 
-  function togglePlayback() {
-    if (!document || document.chunks.length === 0) {
-      return;
-    }
-    setIsPlaying((value) => !value);
+  function finishTutorial() {
+    window.localStorage.setItem(TUTORIAL_KEY, "true");
+    setTutorialOpen(false);
   }
-
-  function resetPlayback() {
-    playbackTokenRef.current += 1;
-    setIsPlaying(false);
-    setCurrentIndex(0);
-  }
-
-  function stepForward() {
-    if (!document || document.chunks.length === 0) {
-      return;
-    }
-    setIsPlaying(false);
-    setCurrentIndex((index) => Math.min(index + 1, document.chunks.length - 1));
-  }
-
-  function stepBackward() {
-    if (!document || document.chunks.length === 0) {
-      return;
-    }
-    setIsPlaying(false);
-    setCurrentIndex((index) => Math.max(index - 1, 0));
-  }
-
-  const progressLabel = document
-    ? document.chunks.length > 0
-      ? `${Math.min(currentIndex + 1, document.chunks.length)} / ${document.chunks.length} chunks`
-      : "0 chunks available"
-    : "No document loaded";
 
   return (
-    <main className="reader-shell">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <p className="subtle-label">Pulse Reader</p>
-          <h1 className="max-w-xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Local-first speed reading for PDFs, EPUBs, and text files.
-          </h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Upload a file, tune the pacing, and read one chunk at a time with punctuation-aware
-            pauses and a single-word pivot highlight.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-muted-foreground">
-          <div className="flex flex-wrap gap-3">
-            <span>Space play/pause</span>
-            <span>R reset</span>
-            <span>[ ] WPM</span>
-            <span>- + chunk size</span>
-            <span>Arrow keys step</span>
-            <span>Click progress bar to seek</span>
+    <main className="compass-stage" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endGesture} onPointerCancel={endGesture}>
+      <div className="ambient-grain" />
+      <header className="status-bar" aria-live="polite">
+        <span className={`signal-dot signal-dot--${permission}`} />
+        <span>{message}</span>
+      </header>
+      {!anchor ? (
+        <button className="set-button" type="button" onClick={setOrigin}>Set</button>
+      ) : (
+        <>
+          <div className="distance-readout"><strong>{Math.round(distance)}</strong><span>metres away</span></div>
+          <div className="goo-blob" style={blobStyle} aria-label="Direction back to your origin">
+            <div className="goo-face"><i className="eye eye--left" /><i className="eye eye--right" /><i className="mouth" /></div>
           </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <section className="space-y-4">
-          <Card className="glass-panel overflow-hidden">
-            <CardHeader className="border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200">
-                  <Upload className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold">Import document</h2>
-                  <p className="text-sm text-muted-foreground">PDF, EPUB, or TXT only.</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setDragActive(true);
-                }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={async (event) => {
-                  event.preventDefault();
-                  setDragActive(false);
-                  const file = event.dataTransfer.files?.[0];
-                  if (file) {
-                    await handleFile(file);
-                  }
-                }}
-                className={cn(
-                  "flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-4 py-8 text-center transition-colors",
-                  dragActive ? "border-cyan-300 bg-cyan-400/10" : "border-white/[0.12] bg-white/[0.03]",
-                )}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.06] text-white/90">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <p className="text-sm font-medium text-white">Drop a file here or browse</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  The file stays local. Parsing happens in the browser.
-                </p>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="mt-4"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  Choose file
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.epub,.txt,application/pdf,application/epub+zip,text/plain"
-                  className="hidden"
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      await handleFile(file);
-                    }
-                    event.currentTarget.value = "";
-                  }}
-                />
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className="font-medium text-white">
-                    {isLoading ? loadingMessage : error ? "Needs attention" : "Ready"}
-                  </span>
-                </div>
-                {document ? (
-                  <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                    <p className="truncate text-sm text-white">{document.title}</p>
-                    <p>{document.sourceName}</p>
-                    <p>{document.totalWords.toLocaleString()} words</p>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    Load a document to begin. Controls update immediately and remain client-side.
-                  </p>
-                )}
-                {error ? (
-                  <p className="mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-100">
-                    {error}
-                  </p>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-panel">
-            <CardHeader className="border-b border-white/10">
-              <h2 className="text-base font-semibold">Playback controls</h2>
-            </CardHeader>
-            <CardContent className="space-y-5 pt-6">
-              <ControlRow
-                label="WPM"
-                value={`${settings.wpm}`}
-                hint="Words per minute"
-                slider={
-                  <Slider
-                    min={80}
-                    max={1200}
-                    step={5}
-                    value={[settings.wpm]}
-                    onValueChange={([value]) =>
-                      updateSettings((prev) => ({ ...prev, wpm: value ?? prev.wpm }))
-                    }
-                  />
-                }
-              />
-              <ControlRow
-                label="Chunk size"
-                value={`${settings.chunkSize}`}
-                hint="Words per chunk"
-                slider={
-                  <Slider
-                    min={1}
-                    max={8}
-                    step={1}
-                    value={[settings.chunkSize]}
-                    onValueChange={([value]) =>
-                      updateSettings((prev) => ({ ...prev, chunkSize: value ?? prev.chunkSize }))
-                    }
-                  />
-                }
-              />
-              <ControlRow
-                label="Font size"
-                value={`${settings.fontSize}px`}
-                hint="Reader display"
-                slider={
-                  <Slider
-                    min={42}
-                    max={120}
-                    step={2}
-                    value={[settings.fontSize]}
-                    onValueChange={([value]) =>
-                      updateSettings((prev) => ({ ...prev, fontSize: value ?? prev.fontSize }))
-                    }
-                  />
-                }
-              />
-
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="secondary" onClick={stepBackward} disabled={!canPlayback || isLoading}>
-                  <ChevronLeft className="h-4 w-4" />
-                  Back
-                </Button>
-                <Button onClick={togglePlayback} disabled={!canPlayback || isLoading} className="px-2">
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : isPlaying ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                  {isPlaying ? "Pause" : "Play"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={stepForward}
-                  disabled={!canPlayback || isLoading}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <Button
-                variant="ghost"
-                className="w-full"
-                onClick={resetPlayback}
-                disabled={!hasDocument || isLoading}
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reset reader
-              </Button>
-
-              {hasBookmark && (
-                <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Bookmark className="h-4 w-4 text-amber-200" />
-                    <span className="text-sm font-medium text-amber-100">Bookmark found</span>
-                  </div>
-                  <p className="text-xs text-amber-100/70">
-                    Resume from where you left off
-                  </p>
-                  <Button
-                    className="w-full"
-                    variant="secondary"
-                    onClick={() => setHasBookmark(false)}
-                    size="sm"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Clear bookmark
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="space-y-4">
-          <Card className="glass-panel min-h-[680px]">
-            <CardHeader className="border-b border-white/10">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="subtle-label">Reader</p>
-                  <h2 className="text-base font-semibold">
-                    {document ? document.title : "Waiting for a file"}
-                  </h2>
-                </div>
-                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground">
-                  {progressLabel}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex min-h-[600px] flex-col pt-6">
-              <Progress value={progress} />
-              <div className="mt-6 flex min-h-[480px] flex-1 items-center justify-center rounded-[2rem] border border-white/[0.08] bg-black/20 px-6 py-8">
-                {isLoading ? (
-                  <div className="flex flex-col items-center gap-4 text-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-cyan-300" />
-                    <div>
-                      <p className="text-lg font-medium text-white">{loadingMessage}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Large books can take a moment to parse on the client.
-                      </p>
-                    </div>
-                  </div>
-                ) : activeChunk ? (
-                  <div
-                    key={activeChunk.id}
-                    className="animate-fade-in-up text-center"
-                    style={{ fontSize: `${settings.fontSize}px` }}
-                  >
-                    <div className="mx-auto flex max-w-5xl flex-wrap items-baseline justify-center gap-x-3 gap-y-2 text-[1em] leading-none tracking-[-0.04em] text-white">
-                      {activeChunk.words.length === 1 ? (
-                        <WordWithPivot word={activeChunk.words[0]} />
-                      ) : (
-                        activeChunk.words.map((word, index) => (
-                          <span key={`${activeChunk.id}-${index}`} className="whitespace-pre-wrap">
-                            {word}
-                          </span>
-                        ))
-                      )}
-                    </div>
-                    <div className="mt-8 flex items-center justify-center gap-2 text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                      <Volume2 className="h-3.5 w-3.5" />
-                      {Math.round(activeChunk.pauseMs)} ms pause
-                    </div>
-                  </div>
-                ) : (
-                  <div className="max-w-xl text-center">
-                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/[0.05]">
-                      <Play className="h-7 w-7 text-white/70" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white">Load a document to start</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      The reader renders one chunk at a time and adjusts the cadence based on
-                      punctuation and your chosen pace.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Playback</p>
-                    <p className="font-medium text-white">
-                      {document ? `${Math.round(progress)}% complete` : "No active document"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-muted-foreground">Mode</p>
-                    <p className="font-medium text-white">
-                      {settings.chunkSize === 1 ? "Single-word pivot" : "Grouped chunks"}
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className="mt-3 h-2 cursor-pointer overflow-hidden rounded-full bg-white/[0.08] hover:h-3 transition-all"
-                  onClick={(e) => {
-                    if (!document || document.chunks.length === 0) return;
-                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                    const clickX = e.clientX - rect.left;
-                    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-                    const newIndex = Math.floor(percentage * document.chunks.length);
-                    setCurrentIndex(Math.min(newIndex, document.chunks.length - 1));
-                    setIsPlaying(false);
-                  }}
-                >
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-teal-300 to-emerald-300 transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      </div>
+          <div className="reset-ring" style={{ "--reset-progress": resetProgress } as React.CSSProperties}><span>3× counterclockwise to reset</span></div>
+        </>
+      )}
+      {tutorialOpen && <Tutorial onDone={finishTutorial} />}
     </main>
   );
 }
 
-function ControlRow({
-  label,
-  value,
-  hint,
-  slider,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  slider: React.ReactNode;
-}) {
+function Tutorial({ onDone }: { onDone: () => void }) {
+  const [page, setPage] = React.useState(0);
+  const steps = [
+    { number: "01", title: "Set your origin", body: "Stand where you want to return to. Tap Set and allow precise location and motion access.", art: <div className="tutorial-set">Set</div> },
+    { number: "02", title: "Follow the goo", body: "As you move, the white creature slides toward the edge that points back to your starting place.", art: <div className="tutorial-goo"><i /><i /></div> },
+    { number: "03", title: "Circle to reset", body: "Draw three full counterclockwise circles anywhere on screen. Keep your finger down until it resets.", art: <div className="tutorial-circle">↺<b>3</b></div> },
+  ];
+  const step = steps[page];
   return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-white">{label}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
+    <section className="tutorial" aria-label="How Watch Compass works">
+      <div className="tutorial-card">
+        <div className="tutorial-topline"><span>Watch Compass</span><span>{step.number} / 03</span></div>
+        <div className="tutorial-art">{step.art}</div>
+        <div><h1>{step.title}</h1><p>{step.body}</p></div>
+        <div className="tutorial-actions">
+          <div className="tutorial-dots">{steps.map((_, index) => <i key={index} className={index === page ? "active" : ""} />)}</div>
+          <button type="button" onClick={() => page < steps.length - 1 ? setPage(page + 1) : onDone()}>{page < steps.length - 1 ? "Next" : "Start"}</button>
         </div>
-        <p className="text-sm font-semibold text-cyan-200">{value}</p>
       </div>
-      {slider}
-    </div>
+    </section>
   );
-}
-
-function WordWithPivot({ word }: { word: string }) {
-  const pivot = extractPivotLetters(word);
-  return (
-    <span className="inline-flex items-baseline rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-4 text-white shadow-[0_0_50px_rgba(0,0,0,0.25)]">
-      <span className="opacity-70">{pivot.prefix}</span>
-      <span className="text-cyan-300">{pivot.pivot}</span>
-      <span className="opacity-70">{pivot.suffix}</span>
-    </span>
-  );
-}
-
-async function loadFile(file: File, onProgress: (message: string) => void) {
-  const normalizedName = file.name.toLowerCase();
-  const kind =
-    file.type === "application/pdf" || normalizedName.endsWith(".pdf")
-      ? "pdf"
-      : file.type === "application/epub+zip" || normalizedName.endsWith(".epub")
-        ? "epub"
-        : file.type.startsWith("text/") || normalizedName.endsWith(".txt")
-          ? "txt"
-          : null;
-
-  if (!kind) {
-    throw new Error("Unsupported file type. Use a PDF, EPUB, or TXT file.");
-  }
-
-  onProgress("Parsing content...");
-
-  switch (kind) {
-    case "pdf":
-      return extractPdfText(file);
-    case "epub":
-      return extractEpubText(file);
-    case "txt": {
-      const text = await file.text();
-      return {
-        title: file.name.replace(/\.[^.]+$/, ""),
-        text,
-      };
-    }
-    default:
-      throw new Error("Unsupported file type.");
-  }
-}
-
-function loadSettings(): ReaderSettings {
-  if (typeof window === "undefined") {
-    return DEFAULT_SETTINGS;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return DEFAULT_SETTINGS;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<ReaderSettings>;
-    return {
-      wpm: clamp(parsed.wpm ?? DEFAULT_SETTINGS.wpm, 80, 1200),
-      chunkSize: clamp(parsed.chunkSize ?? DEFAULT_SETTINGS.chunkSize, 1, 8),
-      fontSize: clamp(parsed.fontSize ?? DEFAULT_SETTINGS.fontSize, 42, 120),
-    };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
-function saveBookmark(sourceName: string, currentIndex: number) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const bookmark: Bookmark = {
-      sourceName,
-      currentIndex,
-      timestamp: Date.now(),
-    };
-    window.localStorage.setItem(BOOKMARK_KEY, JSON.stringify(bookmark));
-  } catch {
-    // Silently fail if storage is not available
-  }
-}
-
-function loadBookmark(sourceName: string): Bookmark | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(BOOKMARK_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const bookmark = JSON.parse(raw) as Bookmark;
-    // Only return bookmark if it's for the same document
-    if (bookmark.sourceName === sourceName) {
-      return bookmark;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function clearBookmark() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.removeItem(BOOKMARK_KEY);
-  } catch {
-    // Silently fail if storage is not available
-  }
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }

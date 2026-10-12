@@ -1,36 +1,45 @@
-# Vlad Miller resume
+# Watch Compass
 
-Production-ready A4 resume with selectable text and an editable, data-driven source.
+Watch Compass is a mobile-first proof of concept for marking a location and finding your way back. It runs in Safari on iPhone and Chrome on Android, stores no location history, and sends no sensor data to a server.
 
-## Edit the content
+## Experience
 
-Open `data/resume.json`. Contact details, title, dates, skills, achievement summaries, job descriptions, and education are all maintained there. The layout and typography live in `scripts/build_resume.py`.
+- The first visit opens a three-step tutorial.
+- Tap **Set** to save the current GPS position and grant motion access.
+- The button becomes a living white compass creature.
+- As distance increases, the creature travels toward the edge pointing back to the saved origin and compresses into a smaller bump.
+- Draw three continuous counterclockwise circles with one finger to reset.
 
-The current source uses confirmed contact details from the supplied resume. Replace the values in `contact` if they change. Keep bullet text concise to preserve the one-page layout.
+The visual language uses original, code-drawn organic forms inspired by tactile physics games. No external artwork or game assets are included.
+
+## Mobile sensors
+
+The POC uses the web platform APIs available on both current mobile platforms:
+
+- Geolocation for distance and bearing to the saved point
+- Device orientation for compass-relative screen direction
+- Device motion for subtle organic deformation
+
+Mobile browsers require HTTPS for location and motion sensors. iOS asks for motion permission only after a user gesture, so permission is requested from the **Set** button.
+
+## Run locally
+
+```sh
+npm install
+npm run dev -- --host
+```
+
+Local desktop testing works at `http://localhost:5173`, but physical phones need an HTTPS deployment to expose GPS, compass, and motion reliably.
 
 ## Build
 
-This project uses Python 3, ReportLab, and pypdf:
-
 ```sh
-python3 -m pip install reportlab pypdf
-python3 scripts/build_resume.py
-python3 scripts/validate_resume.py
+npm run build
+npm run preview -- --host
 ```
 
-The finished file is written to `output/pdf/Vlad_Miller_Resume.pdf`.
+The production output is written to `dist/`. The bundled web manifest and service worker make it installable and offline-ready after the first successful load.
 
-## Fonts
+## Native prototypes
 
-The build uses the system Arial font on macOS and embeds a subset in the PDF. If Arial is unavailable, it falls back to system Verdana. No font file is included or redistributed with this project.
-
-## Preview and print QA
-
-Render the PDF with Poppler:
-
-```sh
-mkdir -p tmp/pdfs
-pdftoppm -png -r 160 -f 1 -singlefile output/pdf/Vlad_Miller_Resume.pdf tmp/pdfs/Vlad_Miller_Resume
-```
-
-The document is A4 with restrained colour and remains legible in greyscale. Run the validation script after every content edit; it checks page count, page dimensions, text extraction order, and key ATS terms.
+Earlier watchOS and Wear OS experiments remain in `native/`. The web POC in `src/` is the current testable product surface.
