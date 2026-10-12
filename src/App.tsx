@@ -1,34 +1,26 @@
 import * as React from "react";
+import {
+  DriftController,
+  IMUIntegrator,
+  OrientationFilter,
+  PDRTracker,
+  StepDetector,
+  linearAccelerationWorld,
+  normalizeDegrees,
+  type OrientationSample,
+  type Vector3,
+} from "./navigation";
 
-type Point = { latitude: number; longitude: number };
 type SensorPermission = "idle" | "granted" | "limited";
 
 const TUTORIAL_KEY = "watch-compass-tutorial-seen";
 const FULL_RESET_RADIANS = Math.PI * 6;
-
-function normalizeDegrees(value: number) {
-  return ((value % 360) + 360) % 360;
-}
 
 function shortestAngleDelta(from: number, to: number) {
   let delta = to - from;
   while (delta > Math.PI) delta -= Math.PI * 2;
   while (delta < -Math.PI) delta += Math.PI * 2;
   return delta;
-}
-
-function distanceAndBearing(from: Point, to: Point) {
-  const earthRadius = 6_371_000;
-  const lat1 = (from.latitude * Math.PI) / 180;
-  const lat2 = (to.latitude * Math.PI) / 180;
-  const latitudeDelta = ((to.latitude - from.latitude) * Math.PI) / 180;
-  const longitudeDelta = ((to.longitude - from.longitude) * Math.PI) / 180;
-  const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(longitudeDelta / 2) ** 2;
-  const distance = earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const y = Math.sin(longitudeDelta) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(longitudeDelta);
-  const bearing = normalizeDegrees((Math.atan2(y, x) * 180) / Math.PI);
-  return { distance, bearing };
 }
 
 async function requestMotionPermission() {
@@ -43,8 +35,7 @@ async function requestMotionPermission() {
 
 export default function App() {
   const [tutorialOpen, setTutorialOpen] = React.useState(() => window.localStorage.getItem(TUTORIAL_KEY) !== "true");
-  const [anchor, setAnchor] = React.useState<Point | null>(null);
-  const [position, setPosition] = React.useState<Point | null>(null);
+  const [tracking, setTracking] = React.useState(false);
   const [distance, setDistance] = React.useState(0);
   const [bearing, setBearing] = React.useState(0);
   const [heading, setHeading] = React.useState(0);
@@ -52,33 +43,83 @@ export default function App() {
   const [permission, setPermission] = React.useState<SensorPermission>("idle");
   const [message, setMessage] = React.useState("Tap Set to remember this place");
   const [resetProgress, setResetProgress] = React.useState(0);
-  const watchIdRef = React.useRef<number | null>(null);
   const gestureRef = React.useRef({ active: false, lastAngle: 0, travel: 0 });
+  const trackingRef = React.useRef(false);
+  const headingRef = React.useRef(0);
+  const orientationRef = React.useRef<OrientationSample | null>(null);
+  const orientationFilterRef = React.useRef(new OrientationFilter());
+  const stepDetectorRef = React.useRef(new StepDetector());
+  const pdrTrackerRef = React.useRef(new PDRTracker());
+  const imuIntegratorRef = React.useRef(new IMUIntegrator());
+  const driftControllerRef = React.useRef(new DriftController());
 
   const reset = React.useCallback(() => {
-    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    watchIdRef.current = null;
-    setAnchor(null);
-    setPosition(null);
+    trackingRef.current = false;
+    setTracking(false);
     setDistance(0);
     setBearing(0);
     setResetProgress(0);
     setMessage("Tap Set to remember this place");
+    orientationFilterRef.current.reset(headingRef.current);
+    stepDetectorRef.current.reset();
+    pdrTrackerRef.current.reset();
+    imuIntegratorRef.current.reset();
+    driftControllerRef.current.reset();
   }, []);
 
   React.useEffect(() => {
     const onOrientation = (event: DeviceOrientationEvent) => {
       const compassHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-      if (typeof compassHeading === "number") setHeading(compassHeading);
-      else if (event.alpha !== null) setHeading(normalizeDegrees(360 - event.alpha));
+      if (event.alpha === null || event.beta === null || event.gamma === null) return;
+      const orientation = orientationFilterRef.current.updateAbsolute(
+        event.timeStamp,
+        event.alpha,
+        event.beta,
+        event.gamma,
+        compassHeading,
+      );
+      orientationRef.current = orientation;
+      headingRef.current = orientation.heading;
+      setHeading(orientation.heading);
     };
     const onMotion = (event: DeviceMotionEvent) => {
-      const acceleration = event.accelerationIncludingGravity;
-      if (!acceleration) return;
+      const gravityAcceleration = event.accelerationIncludingGravity;
+      if (!gravityAcceleration) return;
+      const rotationRate: Vector3 = {
+        x: event.rotationRate?.beta ?? 0,
+        y: event.rotationRate?.gamma ?? 0,
+        z: event.rotationRate?.alpha ?? 0,
+      };
+      orientationFilterRef.current.updateGyroscope(event.timeStamp, rotationRate);
       setMotion({
-        x: Math.max(-1, Math.min(1, (acceleration.x ?? 0) / 9.81)),
-        y: Math.max(-1, Math.min(1, (acceleration.y ?? 0) / 9.81)),
+        x: Math.max(-1, Math.min(1, (gravityAcceleration.x ?? 0) / 9.81)),
+        y: Math.max(-1, Math.min(1, (gravityAcceleration.y ?? 0) / 9.81)),
       });
+      if (!trackingRef.current || !orientationRef.current) return;
+
+      const rawAcceleration: Vector3 = {
+        x: event.acceleration?.x ?? gravityAcceleration.x ?? 0,
+        y: event.acceleration?.y ?? gravityAcceleration.y ?? 0,
+        z: event.acceleration?.z ?? gravityAcceleration.z ?? 0,
+      };
+      const worldAcceleration = linearAccelerationWorld(rawAcceleration, orientationRef.current.quaternion, Boolean(event.acceleration));
+      imuIntegratorRef.current.update(event.timeStamp, worldAcceleration);
+      if (driftControllerRef.current.update(event.timeStamp, worldAcceleration, rotationRate)) {
+        imuIntegratorRef.current.zeroVelocity();
+      }
+
+      const step = stepDetectorRef.current.update(event.timeStamp, {
+        x: gravityAcceleration.x ?? 0,
+        y: gravityAcceleration.y ?? 0,
+        z: gravityAcceleration.z ?? 0,
+      });
+      if (!step) return;
+      const nextPosition = pdrTrackerRef.current.addStep(step, headingRef.current);
+      const nextDistance = Math.hypot(nextPosition.x, nextPosition.y);
+      const bearingToOrigin = normalizeDegrees(Math.atan2(-nextPosition.x, -nextPosition.y) * 180 / Math.PI);
+      setDistance(nextDistance);
+      setBearing(bearingToOrigin);
+      setMessage(`${Math.round(nextDistance / 0.72)} steps from origin`);
     };
     window.addEventListener("deviceorientation", onOrientation, true);
     window.addEventListener("devicemotion", onMotion, true);
@@ -88,48 +129,30 @@ export default function App() {
     };
   }, []);
 
-  React.useEffect(() => {
-    if (!anchor || !position) return;
-    const next = distanceAndBearing(position, anchor);
-    setDistance(next.distance);
-    setBearing(next.bearing);
-  }, [anchor, position]);
-
-  React.useEffect(() => () => {
-    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-  }, []);
-
   async function setOrigin() {
-    if (!navigator.geolocation) {
-      setMessage("Location is not available in this browser");
-      setPermission("limited");
-      return;
-    }
-    setMessage("Finding your position…");
+    setMessage("Starting motion sensors…");
     try {
-      setPermission((await requestMotionPermission()) ? "granted" : "limited");
+      const granted = await requestMotionPermission();
+      setPermission(granted ? "granted" : "limited");
+      if (!granted) {
+        setMessage("Allow motion access, then tap Set again");
+        return;
+      }
     } catch {
       setPermission("limited");
+      setMessage("Allow motion access, then tap Set again");
+      return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (result) => {
-        const origin = { latitude: result.coords.latitude, longitude: result.coords.longitude };
-        setAnchor(origin);
-        setPosition(origin);
-        setDistance(0);
-        setMessage("Origin set · move away");
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (update) => setPosition({ latitude: update.coords.latitude, longitude: update.coords.longitude }),
-          () => setMessage("Waiting for a clear location signal…"),
-          { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 },
-        );
-      },
-      () => {
-        setPermission("limited");
-        setMessage("Allow precise location, then tap Set again");
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
-    );
+    orientationFilterRef.current.reset(headingRef.current);
+    stepDetectorRef.current.reset();
+    pdrTrackerRef.current.reset();
+    imuIntegratorRef.current.reset();
+    driftControllerRef.current.reset();
+    trackingRef.current = true;
+    setTracking(true);
+    setDistance(0);
+    setBearing(0);
+    setMessage("Origin set · walk away");
   }
 
   function pointerAngle(event: React.PointerEvent) {
@@ -143,7 +166,7 @@ export default function App() {
 
   function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
     const gesture = gestureRef.current;
-    if (!gesture.active || !anchor) return;
+    if (!gesture.active || !tracking) return;
     const nextAngle = pointerAngle(event);
     const delta = shortestAngleDelta(gesture.lastAngle, nextAngle);
     gesture.lastAngle = nextAngle;
@@ -167,7 +190,7 @@ export default function App() {
 
   const relativeBearing = normalizeDegrees(bearing - heading);
   const radians = ((relativeBearing - 90) * Math.PI) / 180;
-  const travel = anchor ? Math.min(1, distance) : 0;
+  const travel = tracking ? Math.min(1, distance) : 0;
   const directionX = Math.cos(radians);
   const directionY = Math.sin(radians);
   const horizontalLimit = window.innerWidth / 2 - 5;
@@ -203,7 +226,7 @@ export default function App() {
         <span className={`signal-dot signal-dot--${permission}`} />
         <span>{message}</span>
       </header>
-      {!anchor ? (
+      {!tracking ? (
         <button className="set-button" type="button" onClick={setOrigin}>Set</button>
       ) : (
         <>
@@ -222,8 +245,8 @@ export default function App() {
 function Tutorial({ onDone }: { onDone: () => void }) {
   const [page, setPage] = React.useState(0);
   const steps = [
-    { number: "01", title: "Set your origin", body: "Stand where you want to return to. Tap Set and allow precise location and motion access.", art: <div className="tutorial-set">Set</div> },
-    { number: "02", title: "Follow the goo", body: "Move one metre and the white form reaches the edge that points back to your starting place.", art: <div className="tutorial-goo" /> },
+    { number: "01", title: "Set your origin", body: "Stand where you want to return to. Tap Set and allow motion and orientation access. GPS is never used.", art: <div className="tutorial-set">Set</div> },
+    { number: "02", title: "Follow the goo", body: "Walk away with your phone. Steps and compass heading move the white form toward the edge pointing back to your start.", art: <div className="tutorial-goo" /> },
     { number: "03", title: "Circle to reset", body: "Draw three full counterclockwise circles anywhere on screen. Keep your finger down until it resets.", art: <div className="tutorial-circle">↺<b>3</b></div> },
   ];
   const step = steps[page];

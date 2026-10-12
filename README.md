@@ -1,11 +1,11 @@
 # Watch Compass
 
-Watch Compass is a mobile-first proof of concept for marking a location and finding your way back. It runs in Safari on iPhone and Chrome on Android, stores no location history, and sends no sensor data to a server.
+Watch Compass is a mobile-first proof of concept for marking an offline local origin and finding your way back. It runs in Safari on iPhone and Chrome on Android, stores no movement history, and sends no sensor data to a server.
 
 ## Experience
 
 - The first visit opens a three-step tutorial.
-- Tap **Set** to save the current GPS position and grant motion access.
+- Tap **Set** to zero the local coordinate system and grant motion access.
 - The button becomes an organic white compass form.
 - By one metre, the form reaches the edge pointing back to the saved origin, then gradually compresses into a smaller bump as distance increases.
 - Draw three continuous counterclockwise circles with one finger to reset.
@@ -14,13 +14,16 @@ The visual language uses original, code-drawn organic forms inspired by tactile 
 
 ## Mobile sensors
 
-The POC uses the web platform APIs available on both current mobile platforms:
+The POC uses only web sensor APIs available on both current mobile platforms:
 
-- Geolocation for distance and bearing to the saved point
-- Device orientation for compass-relative screen direction
-- Device motion for subtle organic deformation
+- Device motion for acceleration, gyroscope rates, step detection, and organic deformation
+- Device orientation as the browser's OS-fused accelerometer/gyroscope/magnetometer result
+- Pedestrian dead reckoning for local distance and bearing
+- Stationary detection and zero-velocity correction to limit drift
 
-Mobile browsers require HTTPS for location and motion sensors. iOS asks for motion permission only after a user gesture, so permission is requested from the **Set** button.
+GPS and the browser geolocation API are never used. Mobile browsers require HTTPS for motion sensors. iOS asks for permission only after a user gesture, so permission is requested from the **Set** button.
+
+Browser sensor sampling rates are controlled by the operating system and are usually lower than native 100–200 Hz access. The modular navigation core in `src/navigation/` is designed so the same algorithms can later receive higher-rate samples from the native watch applications. As with all unaided PDR, step length and magnetic interference can introduce drift.
 
 ## Run locally
 
@@ -29,7 +32,7 @@ npm install
 npm run dev -- --host
 ```
 
-Local desktop testing works at `http://localhost:5173`, but physical phones need an HTTPS deployment to expose GPS, compass, and motion reliably.
+Local desktop testing works at `http://localhost:5173`, but physical phones need an HTTPS deployment to expose compass and motion reliably.
 
 ## Build
 

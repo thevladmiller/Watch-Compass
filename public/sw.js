@@ -1,4 +1,4 @@
-const CACHE = "watch-compass-v2";
+const CACHE = "watch-compass-v4";
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
