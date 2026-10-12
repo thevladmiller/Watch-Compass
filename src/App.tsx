@@ -177,14 +177,18 @@ export default function App() {
   const edgeScale = Math.min(horizontalScale, verticalScale);
   const edgeX = directionX * edgeScale;
   const edgeY = directionY * edgeScale;
-  const edgeCompression = Math.min(1, Math.max(0, (distance - 1) / 24));
+  const edgeCompression = Math.min(1, Math.max(0, (distance - 1) / 12));
+  const blobPhase = distance < 0.12 ? "origin" : distance < 1 ? "travel" : distance < 4 ? "corner" : "settled";
   const blobStyle = {
     "--blob-x": `${edgeX * travel}px`,
     "--blob-y": `${edgeY * travel}px`,
-    "--blob-scale": 1 - edgeCompression * 0.42,
+    "--blob-scale": 1 - edgeCompression * 0.36,
     "--blob-tilt-x": motion.x,
     "--blob-tilt-y": motion.y,
     "--blob-angle": `${relativeBearing}deg`,
+    "--blob-settle": edgeCompression,
+    "--blob-settle-x": 1 - edgeCompression * 0.18,
+    "--blob-settle-y": 0.74 - edgeCompression * 0.18,
   } as React.CSSProperties;
 
   function finishTutorial() {
@@ -204,7 +208,8 @@ export default function App() {
       ) : (
         <>
           <div className="distance-readout"><strong>{Math.round(distance)}</strong><span>metres away</span></div>
-          <div className="goo-blob" style={blobStyle} aria-label="Direction back to your origin">
+          <div className={`goo-blob goo-blob--${blobPhase}`} style={blobStyle} aria-label="Direction back to your origin">
+            <div className="goo-form" />
           </div>
           <div className="reset-ring" style={{ "--reset-progress": resetProgress } as React.CSSProperties}><span>3× counterclockwise to reset</span></div>
         </>

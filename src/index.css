@@ -92,23 +92,54 @@ button { font: inherit; }
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 112px;
-  height: 104px;
+  width: 116px;
+  height: 116px;
   margin: -52px 0 0 -56px;
-  background: #f7f7f2;
-  border-radius: 52% 48% 44% 56% / 57% 42% 58% 43%;
-  transform: translate3d(var(--blob-x), var(--blob-y), 0) scale(var(--blob-scale)) rotate(calc(var(--blob-tilt-x) * 3deg));
-  box-shadow: inset -8px -9px 20px rgba(0,0,0,.12), 0 14px 40px rgba(0,0,0,.4);
-  transition: transform 1.3s cubic-bezier(.2,.8,.2,1), border-radius 1s ease;
-  animation: breathe 3.4s ease-in-out infinite, morph 7s ease-in-out infinite alternate;
+  transform: translate3d(var(--blob-x), var(--blob-y), 0) scale(var(--blob-scale));
+  transition: transform .28s cubic-bezier(.2,.82,.2,1);
   z-index: 3;
   will-change: transform;
 }
-.goo-blob::before, .goo-blob::after { content: ""; position: absolute; z-index: -1; background: inherit; border-radius: 50%; }
-.goo-blob::before { width: 48px; height: 52px; left: 3px; top: -12px; transform: rotate(-17deg); }
-.goo-blob::after { width: 43px; height: 47px; right: 1px; bottom: -8px; transform: rotate(21deg); }
-@keyframes breathe { 0%,100% { filter: brightness(1); } 50% { filter: brightness(.94); } }
-@keyframes morph { 0% { border-radius: 52% 48% 44% 56% / 57% 42% 58% 43%; } 100% { border-radius: 44% 56% 53% 47% / 48% 58% 42% 52%; } }
+
+.goo-form {
+  position: absolute;
+  inset: 7px;
+  background: #f7f7f2;
+  border-radius: 50%;
+  transform: rotate(var(--blob-angle));
+  transform-origin: 50% 50%;
+  box-shadow: inset -8px -9px 20px rgba(0,0,0,.12), 0 14px 40px rgba(0,0,0,.4);
+  transition: border-radius .42s ease, inset .42s ease, transform .42s cubic-bezier(.2,.8,.2,1);
+  animation: blob-pulse 3.8s ease-in-out infinite;
+}
+.goo-form::before, .goo-form::after { content: ""; position: absolute; background: inherit; transition: all .42s ease; }
+.goo-form::before { width: 42%; height: 46%; left: 4%; top: 3%; border-radius: 58% 42% 48% 52%; opacity: 0; }
+.goo-form::after { width: 38%; height: 43%; right: 3%; bottom: 2%; border-radius: 46% 54% 60% 40%; opacity: 0; }
+
+.goo-blob--travel .goo-form {
+  inset: 10px 2px 10px 18px;
+  border-radius: 68% 32% 34% 66% / 52% 44% 56% 48%;
+  transform: rotate(var(--blob-angle)) skewX(-5deg);
+}
+.goo-blob--travel .goo-form::before { opacity: .85; transform: translate(-8px, -5px) rotate(-18deg); }
+
+.goo-blob--corner .goo-form {
+  inset: 2px -9px -8px 9px;
+  border-radius: 70% 30% 18% 82% / 62% 48% 52% 38%;
+  transform: rotate(var(--blob-angle)) scaleX(.96) scaleY(.78);
+}
+.goo-blob--corner .goo-form::before { opacity: 1; width: 54%; height: 48%; left: -5%; top: 1%; transform: rotate(-24deg); }
+.goo-blob--corner .goo-form::after { opacity: 1; width: 58%; height: 36%; right: -4%; bottom: -3%; transform: rotate(9deg); }
+
+.goo-blob--settled .goo-form {
+  inset: 6px -14px -13px 18px;
+  border-radius: 76% 24% 10% 90% / 68% 38% 62% 32%;
+  transform: rotate(var(--blob-angle)) scaleX(var(--blob-settle-x)) scaleY(var(--blob-settle-y));
+}
+.goo-blob--settled .goo-form::before { opacity: 1; width: 42%; height: 74%; left: -2%; top: -8%; border-radius: 70% 42% 30% 64%; }
+.goo-blob--settled .goo-form::after { opacity: 1; width: 78%; height: 28%; right: -7%; bottom: -5%; border-radius: 46% 58% 24% 60%; }
+
+@keyframes blob-pulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(.94); } }
 
 .reset-ring {
   --reset-progress: 0;
@@ -138,7 +169,8 @@ button { font: inherit; }
 .tutorial-dots i { width: 5px; height: 5px; border-radius: 50%; background: #404040; }
 .tutorial-dots i.active { width: 20px; border-radius: 6px; background: #fff; }
 .tutorial-set { display: grid; place-items: center; width: 128px; height: 128px; border-radius: 50%; color: #080808; background: #fff; font-size: 26px; box-shadow: 0 0 60px rgba(255,255,255,.12); }
-.tutorial-goo { position: relative; width: 145px; height: 122px; border-radius: 48% 52% 56% 44% / 59% 43% 57% 41%; background: #fff; transform: rotate(-8deg); animation: morph 4s ease-in-out infinite alternate; }
+.tutorial-goo { position: relative; width: 145px; height: 122px; border-radius: 68% 32% 34% 66% / 52% 44% 56% 48%; background: #fff; transform: rotate(-8deg); animation: tutorial-morph 4s ease-in-out infinite alternate; }
+@keyframes tutorial-morph { to { border-radius: 76% 24% 18% 82% / 62% 48% 52% 38%; transform: rotate(-8deg) scale(.82,.7); } }
 .tutorial-circle { position: relative; font: 300 154px/1 Georgia, serif; color: #fff; }
 .tutorial-circle b { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font: 900 36px/1 system-ui, sans-serif; color: #050505; }
 
