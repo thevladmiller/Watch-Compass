@@ -6,8 +6,8 @@ Watch Compass is a mobile-first proof of concept for marking a location and find
 
 - The first visit opens a three-step tutorial.
 - Tap **Set** to save the current GPS position and grant motion access.
-- The button becomes a living white compass creature.
-- As distance increases, the creature travels toward the edge pointing back to the saved origin and compresses into a smaller bump.
+- The button becomes an organic white compass form.
+- By one metre, the form reaches the edge pointing back to the saved origin, then gradually compresses into a smaller bump as distance increases.
 - Draw three continuous counterclockwise circles with one finger to reset.
 
 The visual language uses original, code-drawn organic forms inspired by tactile physics games. No external artwork or game assets are included.

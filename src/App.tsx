@@ -167,10 +167,17 @@ export default function App() {
 
   const relativeBearing = normalizeDegrees(bearing - heading);
   const radians = ((relativeBearing - 90) * Math.PI) / 180;
-  const travel = anchor ? Math.min(1, distance / 22) : 0;
-  const edgeX = Math.cos(radians) * (window.innerWidth / 2 - 30);
-  const edgeY = Math.sin(radians) * (window.innerHeight / 2 - 30);
-  const edgeCompression = Math.max(0, (travel - 0.62) / 0.38);
+  const travel = anchor ? Math.min(1, distance) : 0;
+  const directionX = Math.cos(radians);
+  const directionY = Math.sin(radians);
+  const horizontalLimit = window.innerWidth / 2 - 5;
+  const verticalLimit = window.innerHeight / 2 - 5;
+  const horizontalScale = Math.abs(directionX) > 0.001 ? horizontalLimit / Math.abs(directionX) : Number.POSITIVE_INFINITY;
+  const verticalScale = Math.abs(directionY) > 0.001 ? verticalLimit / Math.abs(directionY) : Number.POSITIVE_INFINITY;
+  const edgeScale = Math.min(horizontalScale, verticalScale);
+  const edgeX = directionX * edgeScale;
+  const edgeY = directionY * edgeScale;
+  const edgeCompression = Math.min(1, Math.max(0, (distance - 1) / 24));
   const blobStyle = {
     "--blob-x": `${edgeX * travel}px`,
     "--blob-y": `${edgeY * travel}px`,
@@ -198,7 +205,6 @@ export default function App() {
         <>
           <div className="distance-readout"><strong>{Math.round(distance)}</strong><span>metres away</span></div>
           <div className="goo-blob" style={blobStyle} aria-label="Direction back to your origin">
-            <div className="goo-face"><i className="eye eye--left" /><i className="eye eye--right" /><i className="mouth" /></div>
           </div>
           <div className="reset-ring" style={{ "--reset-progress": resetProgress } as React.CSSProperties}><span>3× counterclockwise to reset</span></div>
         </>
@@ -212,7 +218,7 @@ function Tutorial({ onDone }: { onDone: () => void }) {
   const [page, setPage] = React.useState(0);
   const steps = [
     { number: "01", title: "Set your origin", body: "Stand where you want to return to. Tap Set and allow precise location and motion access.", art: <div className="tutorial-set">Set</div> },
-    { number: "02", title: "Follow the goo", body: "As you move, the white creature slides toward the edge that points back to your starting place.", art: <div className="tutorial-goo"><i /><i /></div> },
+    { number: "02", title: "Follow the goo", body: "Move one metre and the white form reaches the edge that points back to your starting place.", art: <div className="tutorial-goo" /> },
     { number: "03", title: "Circle to reset", body: "Draw three full counterclockwise circles anywhere on screen. Keep your finger down until it resets.", art: <div className="tutorial-circle">↺<b>3</b></div> },
   ];
   const step = steps[page];
