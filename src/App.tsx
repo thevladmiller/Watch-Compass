@@ -154,7 +154,7 @@ export default function App() {
     imuIntegratorRef.current.reset();
     driftControllerRef.current.reset();
     stepCountRef.current = 0;
-    ignoreStepsUntilRef.current = performance.now() + 650;
+    ignoreStepsUntilRef.current = performance.now() + 250;
     trackingRef.current = true;
     setTracking(true);
     setDistance(0);

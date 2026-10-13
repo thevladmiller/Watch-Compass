@@ -16,8 +16,8 @@ export class StepDetector {
     const highPass = currentMagnitude - this.baseline;
     this.filtered += (highPass - this.filtered) * 0.32;
 
-    const crossedThreshold = this.previous <= 1.35 && this.filtered > 1.35;
-    const enoughTimePassed = timestamp - this.lastStepTimestamp > 520;
+    const crossedThreshold = this.previous <= 1.3 && this.filtered > 1.3;
+    const enoughTimePassed = timestamp - this.lastStepTimestamp > 480;
     const plausiblePeak = this.filtered < 5.5;
     this.previous = this.filtered;
 
