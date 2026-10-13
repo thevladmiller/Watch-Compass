@@ -8,6 +8,7 @@ export class StepDetector {
   private filtered = 0;
   private previous = 0;
   private lastStepTimestamp = -Infinity;
+  private armed = true;
 
   update(timestamp: number, accelerationIncludingGravity: Vector3): StepEvent | null {
     const currentMagnitude = magnitude(accelerationIncludingGravity);
@@ -15,14 +16,16 @@ export class StepDetector {
     const highPass = currentMagnitude - this.baseline;
     this.filtered += (highPass - this.filtered) * 0.32;
 
-    const crossedPeak = this.previous > 0.85 && this.filtered < this.previous;
-    const enoughTimePassed = timestamp - this.lastStepTimestamp > 280;
-    const plausiblePeak = this.previous < 5.5;
+    const crossedThreshold = this.previous <= 1.1 && this.filtered > 1.1;
+    const enoughTimePassed = timestamp - this.lastStepTimestamp > 360;
+    const plausiblePeak = this.filtered < 5.5;
     this.previous = this.filtered;
 
-    if (!crossedPeak || !enoughTimePassed || !plausiblePeak) return null;
+    if (!this.armed && this.filtered < 0.12) this.armed = true;
+    if (!this.armed || !crossedThreshold || !enoughTimePassed || !plausiblePeak) return null;
+    this.armed = false;
     this.lastStepTimestamp = timestamp;
-    return { timestamp, intensity: Math.max(0, this.previous) };
+    return { timestamp, intensity: Math.max(0, this.filtered) };
   }
 
   reset() {
@@ -30,6 +33,7 @@ export class StepDetector {
     this.filtered = 0;
     this.previous = 0;
     this.lastStepTimestamp = -Infinity;
+    this.armed = true;
   }
 }
 

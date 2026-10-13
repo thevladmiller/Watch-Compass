@@ -46,6 +46,8 @@ export default function App() {
   const gestureRef = React.useRef({ active: false, lastAngle: 0, travel: 0 });
   const trackingRef = React.useRef(false);
   const headingRef = React.useRef(0);
+  const stepCountRef = React.useRef(0);
+  const ignoreStepsUntilRef = React.useRef(0);
   const orientationRef = React.useRef<OrientationSample | null>(null);
   const orientationFilterRef = React.useRef(new OrientationFilter());
   const stepDetectorRef = React.useRef(new StepDetector());
@@ -65,6 +67,8 @@ export default function App() {
     pdrTrackerRef.current.reset();
     imuIntegratorRef.current.reset();
     driftControllerRef.current.reset();
+    stepCountRef.current = 0;
+    ignoreStepsUntilRef.current = 0;
   }, []);
 
   React.useEffect(() => {
@@ -113,13 +117,14 @@ export default function App() {
         y: gravityAcceleration.y ?? 0,
         z: gravityAcceleration.z ?? 0,
       });
-      if (!step) return;
+      if (!step || event.timeStamp < ignoreStepsUntilRef.current) return;
+      stepCountRef.current += 1;
       const nextPosition = pdrTrackerRef.current.addStep(step, headingRef.current);
       const nextDistance = Math.hypot(nextPosition.x, nextPosition.y);
       const bearingToOrigin = normalizeDegrees(Math.atan2(-nextPosition.x, -nextPosition.y) * 180 / Math.PI);
       setDistance(nextDistance);
       setBearing(bearingToOrigin);
-      setMessage(`${Math.round(nextDistance / 0.72)} steps from origin`);
+      setMessage(`${stepCountRef.current} steps tracked`);
     };
     window.addEventListener("deviceorientation", onOrientation, true);
     window.addEventListener("devicemotion", onMotion, true);
@@ -148,6 +153,8 @@ export default function App() {
     pdrTrackerRef.current.reset();
     imuIntegratorRef.current.reset();
     driftControllerRef.current.reset();
+    stepCountRef.current = 0;
+    ignoreStepsUntilRef.current = performance.now() + 650;
     trackingRef.current = true;
     setTracking(true);
     setDistance(0);
